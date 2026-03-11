@@ -34,6 +34,7 @@ get_current_wallpaper()
 
 # @brief    return a random wallpaper for the specified display
 # @param $1 the name of the display to retrieve a new wallpaper for
+# @param $2 an array of connected screens as yielded by `xrandr --query | grep "connected"`
 # @return   the path to the new wallpaper or an empty string if there are no wallpapers
 get_random_wallpaper()
 {
@@ -56,6 +57,21 @@ get_random_wallpaper()
     if [ -n "$current" ]; then
         wallpapers=$(printf '%s\n' "$wallpapers" | grep -vF "$current")
     fi
+
+    # as long as there are enough wallpapers left, remove wallpapers used on other displays from the choices
+    local -n screens_ref="$2"
+    for screen in "${screens_ref[@]}"; do
+        num_wallpapers=$(echo "$wallpapers" | wc -l)
+        if [[ $num_wallpapers -eq 1 ]]; then
+            # there aren't enough wallpapers for all the screens, use the last remaining
+            # TODO: use the wallpaper currently used on the least displays
+            break
+        fi
+
+        local display=$(get_display_name "$screen")
+        local current=$(get_current_wallpaper "$display")
+        wallpapers=$(printf '%s\n' "$wallpapers" | grep -vF "$current")
+    done
 
     local random=$(echo "$wallpapers" | shuf -n 1)
     echo "$random"
@@ -102,7 +118,7 @@ set_multi_display_wallpaper()
 
         local wallpaper=
         if [[ $i -eq $update || $update -lt 0 ]]; then
-            wallpaper=$(get_random_wallpaper "$display")
+            wallpaper=$(get_random_wallpaper "$display" "screens")
         else
             wallpaper=$(get_current_wallpaper "$display")
         fi
