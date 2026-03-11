@@ -109,6 +109,10 @@ set_multi_display_wallpaper()
 screens="$(xrandr --query | grep -P '^\s*\w+\s+connected.*\+(\d+)\+(\d+)')"
 numScreens=$(echo "$screens" | wc -l)
 
+# TODO: Make mirrored displays use the single wallpaper approach
+#       Currently it detects multiple displays and creates a "spanned"
+#       wallpaper with multiple images in the same place.
+#       While this technically works, it's needlessly expensive.
 if [ "$numScreens" -eq 1 ]; then
     set_single_display_wallpaper "$screens"
 else
