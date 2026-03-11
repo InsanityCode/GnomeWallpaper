@@ -11,6 +11,8 @@ config=${wpdir}config.ini
 new_config=${wpdir}new_config.ini
 >"$new_config"
 
+k_last_updated=last_updated
+
 # @brief    return the path to the currently set wallpaper for the specified display
 # @param $1 the name of the display to retrieve the currently set wallpaper for
 # @return   the path to the currently set wallpaper or an empty string if unknown
@@ -79,6 +81,7 @@ set_single_display_wallpaper()
 
 # @brief    set a new random wallpaper for every of the specified displays
 # @param $1 the `xrandr --query` lines for the displays
+# @param $2 the index of the display to be updated or -1 to update all
 set_multi_display_wallpaper()
 {
     local IFS=$'\n'
@@ -86,12 +89,23 @@ set_multi_display_wallpaper()
     local -a screens
     read -r -d '' -a screens <<< "$1"
 
+    local update=$2
+    echo "$k_last_updated=$update" >> "$new_config"
+
     local args=
-    for screen in "${screens[@]}"; do
+    for i in "${!screens[@]}"; do
+        local screen="${screens[$i]}"
         local display=$(get_display_name "$screen")
-        local wallpaper=$(get_random_wallpaper "$display")
         local size="$(echo "$screen" | grep -oP '\+\d+\+\d+' | tr '+' ' ')"
         local offset="$(echo "$screen" | grep -oP '\d+x\d+' | tr 'x' ' ')"
+
+        local wallpaper=
+        if [[ $i -eq $update || $update -lt 0 ]]; then
+            wallpaper=$(get_random_wallpaper "$display")
+        else
+            wallpaper=$(get_current_wallpaper "$display")
+        fi
+
         args="$args '$wallpaper' $size $offset"
         echo "$display=$wallpaper" >> "$new_config"
     done
@@ -107,14 +121,16 @@ set_multi_display_wallpaper()
 }
 
 screens="$(xrandr --query | grep -P '^\s*\w+\s+connected.*\+(\d+)\+(\d+)')"
-numScreens=$(echo "$screens" | wc -l)
+num_screens=$(echo "$screens" | wc -l)
 
 # TODO: Make mirrored displays use the single wallpaper approach
 #       Currently it detects multiple displays and creates a "spanned"
 #       wallpaper with multiple images in the same place.
 #       While this technically works, it's needlessly expensive.
-if [ "$numScreens" -eq 1 ]; then
+if [ "$num_screens" -eq 1 ]; then
     set_single_display_wallpaper "$screens"
 else
-    set_multi_display_wallpaper "$screens"
+
+    last_updated=$(grep "^$k_last_updated=" "$config" | cut -d'=' -f2-)
+    set_multi_display_wallpaper "$screens" $(( ($last_updated + 1) % $num_screens))
 fi
