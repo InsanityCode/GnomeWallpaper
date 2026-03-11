@@ -2,40 +2,114 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-wallpapers=~/Pictures/Wallpapers
+wpdir=~/Pictures/GnomeWallpaper/
+mkdir -p "$wpdir"
+
+wallpapers_folder=~/Pictures/Wallpapers/
+config=${wpdir}config.ini
+
+new_config=${wpdir}new_config.ini
+>"$new_config"
+
+# @brief    return the path to the currently set wallpaper for the specified display
+# @param $1 the name of the display to retrieve the currently set wallpaper for
+# @return   the path to the currently set wallpaper or an empty string if unknown
+get_current_wallpaper()
+{
+    if [[ -f "$config" ]]; then
+        local value=$(grep "^$1=" "$config" | cut -d'=' -f2-)
+
+        if [[ -n "$value" ]]; then
+            echo "$value"
+        else
+            echo ""
+        fi
+    else
+        echo ""
+    fi
+}
+
+# @brief    return a random wallpaper for the specified display
+# @param $1 the name of the display to retrieve a new wallpaper for
+# @return   the path to the new wallpaper or an empty string if there are no wallpapers
+get_random_wallpaper()
+{
+    # get all available wallpapers
+    local wallpapers=$(find "$wallpapers_folder" -type f \( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' \))
+
+    local num_wallpapers=$(echo "$wallpapers" | wc -l)
+    if [[ $num_wallpapers -eq 0 ]]; then
+        # there are no wallpapers
+        echo ""
+        return
+    elif [[ $num_wallpapers -eq 1 ]]; then
+        # there is only one wallpaper
+        echo "${wallpapers[0]}"
+        return
+    fi
+
+    # remove the currently set wallpaper from the choices
+    local current=$(get_current_wallpaper "$1")
+    if [ -n "$current" ]; then
+        wallpapers=$(printf '%s\n' "$wallpapers" | grep -vF "$current")
+    fi
+
+    local random=$(echo "$wallpapers" | shuf -n 1)
+    echo "$random"
+}
+
+# @brief    return the display name from the specified xrandr output line
+# @param $1 a single output line from `xrandr --query | grep "connected"`
+# @return   the name of the display
+get_display_name()
+{
+    echo "$1" | awk -F' connected' '{print $1}'
+}
+
+# @brief    set a new random wallpaper for a single display
+# @param $1 the `xrandr --query` line for the display
+set_single_display_wallpaper()
+{
+    local display=$(get_display_name "$1")
+    local wallpaper=$(get_random_wallpaper "$display")
+    gsettings set org.gnome.desktop.background picture-uri-dark "file://$wallpaper"
+    gsettings set org.gnome.desktop.background picture-options "spanned"
+}
+
+# @brief    set a new random wallpaper for every of the specified displays
+# @param $1 the `xrandr --query` lines for the displays
+set_multi_display_wallpaper()
+{
+    local IFS=$'\n'
+
+    local -a screens
+    read -r -d '' -a screens <<< "$1"
+
+    local args=
+    for screen in "${screens[@]}"; do
+        local display=$(get_display_name "$screen")
+        local wallpaper=$(get_random_wallpaper "$display")
+        local size="$(echo "$screen" | grep -oP '\+\d+\+\d+' | tr '+' ' ')"
+        local offset="$(echo "$screen" | grep -oP '\d+x\d+' | tr 'x' ' ')"
+        args="$args '$wallpaper' $size $offset"
+        echo "$display=$wallpaper" >> "$new_config"
+    done
+
+    local spanned=$(realpath "${wpdir}wallpaper.png")
+    eval python3 ./create-span.py "$spanned" $args
+
+    if [ -n "$spanned" ]; then
+        gsettings set org.gnome.desktop.background picture-uri-dark "file://$spanned"
+        gsettings set org.gnome.desktop.background picture-options "spanned"
+        mv "$new_config" "$config"
+    fi
+}
 
 screens="$(xrandr --query | grep -P '^\s*\w+\s+connected.*\+(\d+)\+(\d+)')"
 numScreens=$(echo "$screens" | wc -l)
 
 if [ "$numScreens" -eq 1 ]; then
-    wallpaper=$(find "$wallpapers" -type f \( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' \) | shuf -n 1)
-    gsettings set org.gnome.desktop.background picture-uri-dark "file://$wallpaper"
-    gsettings set org.gnome.desktop.background picture-options "spanned"
-
+    set_single_display_wallpaper "$screens"
 else
-    sizes="$(echo "$screens" | grep -oP '\d+x\d+' | tr 'x' ' ')"
-    offsets="$(echo "$screens" | grep -oP '\+\d+\+\d+' | tr '+' ' ')"
-
-    args=
-    for ((i = 0; i < $numScreens; i++)); do
-        wallpaper=$(find "$wallpapers" -type f \( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' \) | shuf -n 1)
-        offset=$(echo "$sizes" | sed -n "$((i + 1))p")
-        size=$(echo "$offsets" | sed -n "$((i + 1))p")
-        args="$args '$wallpaper' $size $offset"
-    done
-
-    dir=~/Pictures/GnomeWallpaper
-    mkdir -p "$dir"
-
-    spanned=$(realpath "$dir/wallpaper.png")
-
-    eval python3 ./create-span.py "$spanned" $args
-
-    if [ -n "$spanned" ]; then
-
-        gsettings set org.gnome.desktop.background picture-uri-dark "file://$spanned"
-        gsettings set org.gnome.desktop.background picture-options "spanned"
-
-        echo "Changed wallpaper to: $spanned"
-    fi
+    set_multi_display_wallpaper "$screens"
 fi
