@@ -74,6 +74,7 @@ set_single_display_wallpaper()
     local wallpaper=$(get_random_wallpaper "$display")
     gsettings set org.gnome.desktop.background picture-uri-dark "file://$wallpaper"
     gsettings set org.gnome.desktop.background picture-options "spanned"
+    echo "$display=$wallpaper" > "$config"
 }
 
 # @brief    set a new random wallpaper for every of the specified displays
