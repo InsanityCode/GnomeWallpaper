@@ -11,6 +11,7 @@ config=${wpdir}config.ini
 new_config=${wpdir}new_config.ini
 >"$new_config"
 
+k_display=display_
 k_last_updated=last_updated
 
 # @brief    return the path to the currently set wallpaper for the specified display
@@ -19,7 +20,7 @@ k_last_updated=last_updated
 get_current_wallpaper()
 {
     if [[ -f "$config" ]]; then
-        local value=$(grep "^$1=" "$config" | cut -d'=' -f2-)
+        local value=$(grep "^$k_display$1=" "$config" | cut -d'=' -f2-)
 
         if [[ -n "$value" ]]; then
             echo "$value"
@@ -76,7 +77,7 @@ set_single_display_wallpaper()
     local wallpaper=$(get_random_wallpaper "$display")
     gsettings set org.gnome.desktop.background picture-uri-dark "file://$wallpaper"
     gsettings set org.gnome.desktop.background picture-options "spanned"
-    echo "$display=$wallpaper" > "$config"
+    echo "$k_display$display=$wallpaper" > "$config"
 }
 
 # @brief    set a new random wallpaper for every of the specified displays
@@ -107,7 +108,7 @@ set_multi_display_wallpaper()
         fi
 
         args="$args '$wallpaper' $size $offset"
-        echo "$display=$wallpaper" >> "$new_config"
+        echo "$k_display$display=$wallpaper" >> "$new_config"
     done
 
     local spanned=$(realpath "${wpdir}wallpaper.png")
