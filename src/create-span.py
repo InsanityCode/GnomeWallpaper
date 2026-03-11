@@ -25,9 +25,6 @@ for i in range(0, len(args), 5):
         h = int(args[i + 4])
         screens.append(Screen(path, x, y, w, h))
 
-for screen in screens:
-    print(screen)
-
 w = 0
 h = 0
 for screen in screens:
