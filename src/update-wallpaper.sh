@@ -59,7 +59,7 @@ get_random_wallpaper()
     fi
 
     # as long as there are enough wallpapers left, remove wallpapers used on other displays from the choices
-    local -n screens_ref="$2"
+    local screens_ref=("${!2}")
     for screen in "${screens_ref[@]}"; do
         num_wallpapers=$(echo "$wallpapers" | wc -l)
         if [[ $num_wallpapers -eq 1 ]]; then
@@ -122,7 +122,7 @@ set_multi_display_wallpaper()
 
         local wallpaper=
         if [[ $i -eq $update || $update -lt 0 || -z $current ]]; then
-            wallpaper=$(get_random_wallpaper "$display" "screens")
+            wallpaper=$(get_random_wallpaper "$display" "screens[@]")
         else
             wallpaper=$current
         fi
