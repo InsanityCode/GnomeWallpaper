@@ -70,7 +70,9 @@ get_random_wallpaper()
 
         local display=$(get_display_name "$screen")
         local current=$(get_current_wallpaper "$display")
-        wallpapers=$(printf '%s\n' "$wallpapers" | grep -vF "$current")
+        if [[ -n $current ]]; then
+            wallpapers=$(printf '%s\n' "$wallpapers" | grep -vF "$current")
+        fi
     done
 
     local random=$(echo "$wallpapers" | shuf -n 1)
@@ -116,11 +118,13 @@ set_multi_display_wallpaper()
         local size="$(echo "$screen" | grep -oP '\+\d+\+\d+' | tr '+' ' ')"
         local offset="$(echo "$screen" | grep -oP '\d+x\d+' | tr 'x' ' ')"
 
+        local current=$(get_current_wallpaper "$display")
+
         local wallpaper=
-        if [[ $i -eq $update || $update -lt 0 ]]; then
+        if [[ $i -eq $update || $update -lt 0 || -z $current ]]; then
             wallpaper=$(get_random_wallpaper "$display" "screens")
         else
-            wallpaper=$(get_current_wallpaper "$display")
+            wallpaper=$current
         fi
 
         args="$args '$wallpaper' $size $offset"
@@ -147,7 +151,10 @@ num_screens=$(echo "$screens" | wc -l)
 if [ "$num_screens" -eq 1 ]; then
     set_single_display_wallpaper "$screens"
 else
-
-    last_updated=$(grep "^$k_last_updated=" "$config" | cut -d'=' -f2-)
+    if [[ -f "$config" ]]; then
+        last_updated=$(grep "^$k_last_updated=" "$config" | cut -d'=' -f2-)
+    else
+        last_updated=-1
+    fi
     set_multi_display_wallpaper "$screens" $(( ($last_updated + 1) % $num_screens))
 fi
