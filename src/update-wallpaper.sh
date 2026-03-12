@@ -111,6 +111,7 @@ set_multi_display_wallpaper()
     local update=$2
     echo "$k_last_updated=$update" >> "$new_config"
 
+    # TODO even if no prior config exists, avoid using the same wallpaper on multiple screens
     local args=
     for i in "${!screens[@]}"; do
         local screen="${screens[$i]}"
