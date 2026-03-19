@@ -11,6 +11,9 @@ config=${wpdir}config.ini
 new_config=${wpdir}new_config.ini
 >"$new_config"
 
+spanned=$(realpath "${wpdir}wallpaper.png")
+new_spanned=$(realpath "${wpdir}new_wallpaper.png")
+
 k_display=display_
 k_last_updated=last_updated
 
@@ -132,10 +135,10 @@ set_multi_display_wallpaper()
         echo "$k_display$display=$wallpaper" >> "$new_config"
     done
 
-    local spanned=$(realpath "${wpdir}wallpaper.png")
-    eval python3 ./create-span.py "$spanned" $args
+    eval python3 ./create-span.py "$new_spanned" $args
 
-    if [ -n "$spanned" ]; then
+    if [ -n "$new_spanned" ]; then
+        mv -f "$new_spanned" "$spanned"
         gsettings set org.gnome.desktop.background picture-uri-dark "file://$spanned"
         gsettings set org.gnome.desktop.background picture-options "spanned"
         mv "$new_config" "$config"
