@@ -97,8 +97,26 @@ set_single_display_wallpaper()
     local display=$(get_display_name "$1")
     local wallpaper=$(get_random_wallpaper "$display")
     gsettings set org.gnome.desktop.background picture-uri-dark "file://$wallpaper"
-    gsettings set org.gnome.desktop.background picture-options "spanned"
+    gsettings set org.gnome.desktop.background picture-options "zoom"
     echo "$k_display$display=$wallpaper" > "$config"
+}
+
+min()
+{
+    if (( $1 < $2 )); then
+        echo $1
+    else
+        echo $2
+    fi
+}
+
+max()
+{
+    if (( $1 < $2 )); then
+        echo $2
+    else
+        echo $1
+    fi
 }
 
 # @brief    set a new random wallpaper for every of the specified displays
@@ -115,12 +133,41 @@ set_multi_display_wallpaper()
     echo "$k_last_updated=$update" >> "$new_config"
 
     # TODO even if no prior config exists, avoid using the same wallpaper on multiple screens
+
+    local min_x=0
+    local max_x=0
+    local min_y=0
+    local max_y=0
+
     local args=
     for i in "${!screens[@]}"; do
         local screen="${screens[$i]}"
-        local display=$(get_display_name "$screen")
-        local size="$(echo "$screen" | grep -oP '\+\d+\+\d+' | tr '+' ' ')"
-        local offset="$(echo "$screen" | grep -oP '\d+x\d+' | tr 'x' ' ')"
+
+        if [[ "$screen" =~ ^([^[:space:]]+)[[:space:]][^[:digit:]]+[[:space:]]([[:digit:]]+)x([[:digit:]]+)\+([[:digit:]]+)\+([[:digit:]]+) ]]; then
+            local display=${BASH_REMATCH[1]}
+            local w=${BASH_REMATCH[2]}
+            local h=${BASH_REMATCH[3]}
+            local lo_x=${BASH_REMATCH[4]}
+            local lo_y=${BASH_REMATCH[5]}
+        else
+            # can't parse displays, use single display mode
+            set_single_display_wallpaper "$screen"
+            return
+        fi
+
+        local hi_x=$(( lo_x + w ))
+        local hi_y=$(( lo_y + h ))
+
+        if (( hi_x > min_x && hi_y > min_y && lo_x < max_x && lo_y < max_y )); then
+            # displays intersect (e.g. mirrored), use single display mode
+            set_single_display_wallpaper "$screen"
+            return
+        fi
+
+        min_x=$(min $lo_x $min_x)
+        max_x=$(max $hi_x $max_x)
+        min_y=$(min $lo_y $min_y)
+        max_y=$(max $hi_y $max_y)
 
         local current=$(get_current_wallpaper "$display")
 
@@ -131,7 +178,7 @@ set_multi_display_wallpaper()
             wallpaper=$current
         fi
 
-        args="$args '$wallpaper' $size $offset"
+        args="$args '$wallpaper' $lo_x $lo_y $w $h"
         echo "$k_display$display=$wallpaper" >> "$new_config"
     done
 
@@ -148,10 +195,6 @@ set_multi_display_wallpaper()
 screens="$(xrandr --query | grep -P '^\s*\w+\s+connected.*\+(\d+)\+(\d+)')"
 num_screens=$(echo "$screens" | wc -l)
 
-# TODO: Make mirrored displays use the single wallpaper approach
-#       Currently it detects multiple displays and creates a "spanned"
-#       wallpaper with multiple images in the same place.
-#       While this technically works, it's needlessly expensive.
 if [ "$num_screens" -eq 1 ]; then
     set_single_display_wallpaper "$screens"
 else
