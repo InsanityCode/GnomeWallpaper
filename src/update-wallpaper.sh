@@ -95,6 +95,7 @@ set_single_display_wallpaper()
     local display=$(get_display_name "$1")
     local wallpaper=$(get_random_wallpaper "$display")
     gsettings set org.gnome.desktop.background picture-uri-dark "file://$wallpaper"
+    gsettings set org.gnome.desktop.background picture-uri "file://$wallpaper"
     gsettings set org.gnome.desktop.background picture-options "zoom"
     echo "$k_display$display=$wallpaper" > "$config"
 }
@@ -186,6 +187,7 @@ set_multi_display_wallpaper()
     if [ -n "$new_spanned" ]; then
         mv -f "$new_spanned" "$spanned"
         gsettings set org.gnome.desktop.background picture-uri-dark "file://$spanned"
+        gsettings set org.gnome.desktop.background picture-uri "file://$spanned"
         gsettings set org.gnome.desktop.background picture-options "spanned"
         mv "$new_config" "$config"
     fi
