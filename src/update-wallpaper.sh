@@ -67,7 +67,6 @@ get_random_wallpaper()
         num_wallpapers=$(echo "$wallpapers" | wc -l)
         if [[ $num_wallpapers -eq 1 ]]; then
             # there aren't enough wallpapers for all the screens, use the last remaining
-            # TODO: use the wallpaper currently used on the least displays
             break
         fi
 
