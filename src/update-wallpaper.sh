@@ -37,7 +37,7 @@ get_current_wallpaper()
 
 # @brief    return a random wallpaper for the specified display
 # @param $1 the name of the display to retrieve a new wallpaper for
-# @param $2 an array of connected screens as yielded by `xrandr --query | grep "connected"`
+# @param $2 an array of already taken wallpapers
 # @return   the path to the new wallpaper or an empty string if there are no wallpapers
 get_random_wallpaper()
 {
@@ -61,9 +61,9 @@ get_random_wallpaper()
         wallpapers=$(printf '%s\n' "$wallpapers" | grep -vF "$current")
     fi
 
-    # as long as there are enough wallpapers left, remove wallpapers used on other displays from the choices
-    local screens_ref=("${!2}")
-    for screen in "${screens_ref[@]}"; do
+    # as long as there are enough wallpapers left, remove already taken wallpapers from the choices
+    local chosen_ref=("${!2}")
+    for chosen in "${chosen_ref[@]}"; do
         num_wallpapers=$(echo "$wallpapers" | wc -l)
         if [[ $num_wallpapers -eq 1 ]]; then
             # there aren't enough wallpapers for all the screens, use the last remaining
@@ -71,10 +71,8 @@ get_random_wallpaper()
             break
         fi
 
-        local display=$(get_display_name "$screen")
-        local current=$(get_current_wallpaper "$display")
-        if [[ -n $current ]]; then
-            wallpapers=$(printf '%s\n' "$wallpapers" | grep -vF "$current")
+        if [[ -n $chosen ]]; then
+            wallpapers=$(printf '%s\n' "$wallpapers" | grep -vF "$chosen")
         fi
     done
 
@@ -132,7 +130,7 @@ set_multi_display_wallpaper()
     local update=$2
     echo "$k_last_updated=$update" >> "$new_config"
 
-    # TODO even if no prior config exists, avoid using the same wallpaper on multiple screens
+    local -a chosen
 
     local min_x=0
     local max_x=0
@@ -173,10 +171,11 @@ set_multi_display_wallpaper()
 
         local wallpaper=
         if [[ $i -eq $update || $update -lt 0 || -z $current ]]; then
-            wallpaper=$(get_random_wallpaper "$display" "screens[@]")
+            wallpaper=$(get_random_wallpaper "$display" "chosen[@]")
         else
             wallpaper=$current
         fi
+        chosen+=("$wallpaper")
 
         args="$args '$wallpaper' $lo_x $lo_y $w $h"
         echo "$k_display$display=$wallpaper" >> "$new_config"
