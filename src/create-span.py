@@ -8,7 +8,7 @@ class Screen:
         self.y = y
         self.w = w
         self.h = h
-        self.img = Image.open(path).resize((w, h), Image.ANTIALIAS)
+        self.img = Image.open(path).resize((w, h), Image.LANCZOS)
 
     def __str__(self):
         return f"Screen: path='{self.path}', x={self.x}, y={self.y}, w={self.w}, h={self.h}"
