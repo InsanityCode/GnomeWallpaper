@@ -199,7 +199,7 @@ set_multi_display_wallpaper()
     fi
 }
 
-screens="$(xrandr --query | grep -P '^\s*\w+\s+connected.*\+(\d+)\+(\d+)')"
+screens="$(xrandr --query | grep -P '^\s*[^\s]+\s+connected\s+')"
 num_screens=$(echo "$screens" | wc -l)
 
 if [ "$num_screens" -eq 1 ]; then
