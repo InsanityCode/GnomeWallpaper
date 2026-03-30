@@ -132,10 +132,10 @@ set_multi_display_wallpaper()
 
     local -a chosen
 
-    local min_x=0
-    local max_x=0
-    local min_y=0
-    local max_y=0
+    local min_x=NaN
+    local max_x=NaN
+    local min_y=NaN
+    local max_y=NaN
 
     local args=
     for i in "${!screens[@]}"; do
@@ -156,16 +156,23 @@ set_multi_display_wallpaper()
         local hi_x=$(( lo_x + w ))
         local hi_y=$(( lo_y + h ))
 
-        if (( hi_x > min_x && hi_y > min_y && lo_x < max_x && lo_y < max_y )); then
-            # displays intersect (e.g. mirrored), use single display mode
-            set_single_display_wallpaper "$screen"
-            return
-        fi
+        if [[ "$min_x" == "NaN" ]]; then
+            min_x=$lo_x
+            max_x=$hi_x
+            min_y=$lo_y
+            max_y=$hi_y
+        else
+            if (( hi_x > min_x && hi_y > min_y && lo_x < max_x && lo_y < max_y )); then
+                # displays intersect (e.g. mirrored), use single display mode
+                set_single_display_wallpaper "$screen"
+                return
+            fi
 
-        min_x=$(min $lo_x $min_x)
-        max_x=$(max $hi_x $max_x)
-        min_y=$(min $lo_y $min_y)
-        max_y=$(max $hi_y $max_y)
+            min_x=$(min $lo_x $min_x)
+            max_x=$(max $hi_x $max_x)
+            min_y=$(min $lo_y $min_y)
+            max_y=$(max $hi_y $max_y)
+        fi
 
         local current=$(get_current_wallpaper "$display")
 
